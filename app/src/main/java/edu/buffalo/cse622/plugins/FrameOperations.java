@@ -55,10 +55,16 @@ public class FrameOperations {
     private ModelRenderable macbookVideoRenderable;
     private ExternalTexture texture;
     private MediaPlayer mediaPlayer;
-    private boolean videoStarted;
 
     // Controls the height of the video in world space.
     private static final float VIDEO_HEIGHT_METERS = 0.85f;
+
+    // Created enum because there is an issue with MediaPlayer's stop(). Can't start() after stop() without preparing MediaPlayer again.
+    private enum MediaPlayerStates {
+        PREPARED, PLAYING, STOPPED, PAUSED
+    }
+
+    private MediaPlayerStates currentMediaPlayerState;
 
     /**
      * Constructor does all the resources loading that the plugin requires.
@@ -72,23 +78,10 @@ public class FrameOperations {
         this.context = arFragment.getContext();
         this.pluginObjects = pluginObjects;
 
-        // This is how we load a layout resource.
-        int macbookVideoId = dynamicResources.getIdentifier("macbook_pro_replace_hard_drive", "raw", "edu.buffalo.cse622.plugins");
-        AssetFileDescriptor macbookVideoInputStreamFD = dynamicResources.openRawResourceFd(macbookVideoId);
-
         // Create an ExternalTexture for displaying the contents of the video.
         texture = new ExternalTexture();
-
-        try {
-            // Create an Android MediaPlayer to capture the video on the external texture's surface.
-            mediaPlayer = new MediaPlayer();
-            mediaPlayer.setDataSource(macbookVideoInputStreamFD);
-            mediaPlayer.prepare();
-            mediaPlayer.setSurface(texture.getSurface());
-            mediaPlayer.setLooping(false);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        mediaPlayer = new MediaPlayer();
+        setMediaPlayer();
 
         int macbookVideoTextLayoutId = dynamicResources.getIdentifier("text_view", "layout", "edu.buffalo.cse622.plugins");
         XmlResourceParser macbookVideoTextViewXml = dynamicResources.getLayout(macbookVideoTextLayoutId);
@@ -155,19 +148,26 @@ public class FrameOperations {
 
         Collection<AugmentedImage> augmentedImages = frame.getUpdatedTrackables(AugmentedImage.class);
         for (AugmentedImage augmentedImage : augmentedImages) {
-            if (augmentedImage.getTrackingState() == TrackingState.TRACKING) {
+            if (augmentedImage.getTrackingState() == TrackingState.TRACKING &&
+                    augmentedImage.getTrackingMethod() == AugmentedImage.TrackingMethod.FULL_TRACKING) {
                 if (augmentedImage.getName().equals("macbook_pro_2018_keyboard")) {
                     Log.d(TAG, "Detected Macbook Pro Keyboard!");
-                    Toast.makeText(context, "Detected Macbook Pro Keyboard!", Toast.LENGTH_LONG).show();
+                    //Toast.makeText(context, "Detected Macbook Pro Keyboard!", Toast.LENGTH_LONG).show();
 
                     if (videoAnchorNode == null) {
                         videoAnchorNode = new AnchorNode(augmentedImage.createAnchor(augmentedImage.getCenterPose()));
+
+                        if (currentMediaPlayerState == MediaPlayerStates.STOPPED) {
+                            setMediaPlayer();
+                        }
                     } else {
                         videoAnchorNode.setAnchor(augmentedImage.createAnchor(augmentedImage.getCenterPose()));
                     }
 
                     // Start playing the video.
-                    if (!videoStarted && !mediaPlayer.isPlaying()) {
+                    if (currentMediaPlayerState == MediaPlayerStates.PREPARED || currentMediaPlayerState == MediaPlayerStates.STOPPED) {
+                        Log.e(TAG, currentMediaPlayerState.name());
+                        Toast.makeText(context, currentMediaPlayerState.name(), Toast.LENGTH_LONG).show();
                         // Create a node to render the video and add it to the anchor.
                         Node node = new Node();
                         node.setParent(videoAnchorNode);
@@ -181,7 +181,7 @@ public class FrameOperations {
                         node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f));
 
                         mediaPlayer.start();
-                        videoStarted = true;
+                        currentMediaPlayerState = MediaPlayerStates.PLAYING;
 
                         // Wait to set the renderable until the first frame of the  video becomes available.
                         // This prevents the renderable from briefly appearing as a black quad before the video
@@ -208,8 +208,8 @@ public class FrameOperations {
                                             Vector3 videoBack = videoNode.getBack();
                                             videoTextNode.setLocalPosition(videoBack);
                                             Vector3 pos = videoTextNode.getWorldPosition();
-                                            pos.x -= .3f;
-                                            pos.y -= .3f;
+                                            pos.x -= .5f;
+                                            pos.y += .5f;
 
                                             TextView textView = (TextView) macbookTextRenderable.getView();
                                             textView.setText("Macbook Pro replace SSD");
@@ -218,14 +218,18 @@ public class FrameOperations {
 
                                             videoNode.setOnTapListener(
                                                     (HitTestResult hitTestResult, MotionEvent event) -> {
-                                                        if (mediaPlayer.isPlaying()) {
+                                                        if (currentMediaPlayerState == MediaPlayerStates.PLAYING) {
+                                                            mediaPlayer.pause();
                                                             Log.d(TAG, "Video paused.");
                                                             Toast.makeText(context, "Video paused!", Toast.LENGTH_LONG).show();
-                                                            mediaPlayer.pause();
+
+                                                            currentMediaPlayerState = MediaPlayerStates.PAUSED;
                                                         } else {
+                                                            mediaPlayer.start();
                                                             Log.d(TAG, "Video started.");
                                                             Toast.makeText(context, "Video resumed!", Toast.LENGTH_LONG).show();
-                                                            mediaPlayer.start();
+
+                                                            currentMediaPlayerState = MediaPlayerStates.PLAYING;
                                                         }
                                                     });
 
@@ -247,11 +251,31 @@ public class FrameOperations {
 
     /**
      * This is invoked when the MetaApp clears or disables this plugin.
-     *
      */
     private void onDestroy() {
         mediaPlayer.stop();
-        videoStarted = false;
+        mediaPlayer.reset();
+        videoAnchorNode = null;
+
+        currentMediaPlayerState = MediaPlayerStates.STOPPED;
+    }
+
+    private void setMediaPlayer() {
+        // This is how we load a layout resource.
+        int macbookVideoId = dynamicResources.getIdentifier("macbook_pro_replace_hard_drive", "raw", "edu.buffalo.cse622.plugins");
+        AssetFileDescriptor macbookVideoInputStreamFD = dynamicResources.openRawResourceFd(macbookVideoId);
+
+        try {
+            // Create an Android MediaPlayer to capture the video on the external texture's surface.
+            mediaPlayer.setDataSource(macbookVideoInputStreamFD);
+            mediaPlayer.prepare();
+            mediaPlayer.setSurface(texture.getSurface());
+            mediaPlayer.setLooping(false);
+
+            currentMediaPlayerState = MediaPlayerStates.PREPARED;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private boolean setupAugmentedImagesDb(Config config, Session session) {
