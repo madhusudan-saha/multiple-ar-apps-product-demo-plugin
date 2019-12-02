@@ -152,7 +152,7 @@ public class FrameOperations {
                     augmentedImage.getTrackingMethod() == AugmentedImage.TrackingMethod.FULL_TRACKING) {
                 if (augmentedImage.getName().equals("macbook_pro_2018_keyboard")) {
                     Log.d(TAG, "Detected Macbook Pro Keyboard!");
-                    //Toast.makeText(context, "Detected Macbook Pro Keyboard!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(context, "Detected Macbook Pro Keyboard!", Toast.LENGTH_LONG).show();
 
                     if (videoAnchorNode == null) {
                         videoAnchorNode = new AnchorNode(augmentedImage.createAnchor(augmentedImage.getCenterPose()));
@@ -166,8 +166,6 @@ public class FrameOperations {
 
                     // Start playing the video.
                     if (currentMediaPlayerState == MediaPlayerStates.PREPARED || currentMediaPlayerState == MediaPlayerStates.STOPPED) {
-                        Log.e(TAG, currentMediaPlayerState.name());
-                        Toast.makeText(context, currentMediaPlayerState.name(), Toast.LENGTH_LONG).show();
                         // Create a node to render the video and add it to the anchor.
                         Node node = new Node();
                         node.setParent(videoAnchorNode);
@@ -208,8 +206,8 @@ public class FrameOperations {
                                             Vector3 videoBack = videoNode.getBack();
                                             videoTextNode.setLocalPosition(videoBack);
                                             Vector3 pos = videoTextNode.getWorldPosition();
-                                            pos.x -= .5f;
-                                            pos.y += .5f;
+                                            pos.x -= .10f;
+                                            //pos.y += .5f;
 
                                             TextView textView = (TextView) macbookTextRenderable.getView();
                                             textView.setText("Macbook Pro replace SSD");
