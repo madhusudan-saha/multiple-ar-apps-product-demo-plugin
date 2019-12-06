@@ -130,9 +130,9 @@ public class FrameOperations {
                             return null;
                         });
 
-        Session session = arFragment.getArSceneView().getSession();
-        Config config = session.getConfig();
-        setupAugmentedImagesDb(config, session);
+        //Session session = arFragment.getArSceneView().getSession();
+        //Config config = session.getConfig();
+        //setupAugmentedImagesDb(config, session);
     }
 
     /**
