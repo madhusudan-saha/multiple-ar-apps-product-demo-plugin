@@ -41,7 +41,7 @@ import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-public class FrameOperations {
+public class FrameOperations implements Operations {
 
     private static final String TAG = "ProductDemoPlugin:" + FrameOperations.class.getSimpleName();
 
@@ -141,7 +141,7 @@ public class FrameOperations {
      * @param frame
      * @return
      */
-    private void processFrame(Frame frame) {
+    public void processFrame(Frame frame) {
         if (macbookVideoRenderable == null || frame == null) {
             return;
         }
@@ -231,7 +231,7 @@ public class FrameOperations {
                                                         }
                                                     });
 
-                                            renderObject(videoAnchorNode);
+                                            renderObject(arFragment, pluginObjects, videoAnchorNode);
                                         });
                     }
                 }
@@ -244,13 +244,13 @@ public class FrameOperations {
      *
      * @param hitResult
      */
-    private void planeTap(HitResult hitResult) {
+    public void planeTap(HitResult hitResult) {
     }
 
     /**
      * This is invoked when the MetaApp clears or disables this plugin.
      */
-    private void onDestroy() {
+    public void onDestroy() {
         mediaPlayer.stop();
         mediaPlayer.reset();
         videoAnchorNode = null;
@@ -300,13 +300,6 @@ public class FrameOperations {
             Log.e(TAG, "loadAugmentedImage: " + "IO Exception", e);
         }
         return null;
-    }
-
-    private void renderObject(AnchorNode anchorNode) {
-        if (anchorNode != null) {
-            anchorNode.setParent(arFragment.getArSceneView().getScene());
-            pluginObjects.add(anchorNode);
-        }
     }
 }
 
